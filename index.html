@@ -12,8 +12,13 @@
             background-color: #E6E6FA; 
             font-family: sans-serif;
             touch-action: none; 
-            user-select: none; /* Zabráni označovaniu textu pri hraní */
+            user-select: none; 
             -webkit-user-select: none;
+            cursor: grab; /* Kurzor pre PC */
+        }
+        
+        body:active {
+            cursor: grabbing;
         }
 
         #center-image {
@@ -77,15 +82,15 @@
             bottom: 40px;
             width: 100%;
             text-align: center;
-            color: #6a5acd; /* Tmavšia fialová pre čitateľnosť */
+            color: #6a5acd; 
             font-size: 18px;
             pointer-events: none;
-            opacity: 0; /* Na začiatku skryté */
+            opacity: 0; 
             transition: opacity 1.5s;
             z-index: 5;
             font-weight: bold;
             text-shadow: 0 1px 2px rgba(255,255,255,0.8);
-            display: none; /* Aby nezavadzalo tlačidlu */
+            display: none; 
         }
     </style>
 </head>
@@ -97,7 +102,7 @@
 
     <div id="hearts-container"></div>
     
-    <div id="instruction">Nakláňaj telefón a skús bublinky chytiť</div>
+    <div id="instruction">Chyť bublinku a potiahni ju. Nakláňaním hýbeš ostatnými.</div>
 
     <button id="start-btn">Ahoj</button>
 
@@ -115,10 +120,11 @@
         let width = window.innerWidth;
         let height = window.innerHeight;
 
-        // Premenné pre dotyk/interakciu
-        let touchX = 0;
-        let touchY = 0;
-        let isTouching = false;
+        // Premenná pre aktuálne ťahanú bublinu
+        let draggedHeart = null;
+        // Offset, aby sme bublinu držali tam, kde sme ju chytili (nie za stred)
+        let dragOffsetX = 0;
+        let dragOffsetY = 0;
 
         function createHeart() {
             const size = Math.random() * 40 + 30; 
@@ -173,7 +179,21 @@
             for (let i = 0; i < hearts.length; i++) {
                 let h = hearts[i];
 
-                // 1. Gravitácia
+                // --- LOGIKA PRE DRŽANÚ BUBLINU ---
+                if (h === draggedHeart) {
+                    // Ak bublinu držíme, nulujeme jej rýchlosť, aby "nebojovala" s prstom
+                    h.vx = 0;
+                    h.vy = 0;
+                    // Pozíciu aktualizujeme priamo v touchmove evente, tu len vykreslíme
+                    h.element.style.transform = `translate(${h.x}px, ${h.y}px)`;
+                    
+                    // Preskočíme zvyšok fyziky pre túto bublinu
+                    continue; 
+                }
+
+                // --- FYZIKA PRE OSTATNÉ BUBLINY ---
+
+                // 1. Gravitácia (len ak nie je držaná)
                 h.vx += gravityX * h.sensitivity;
                 h.vy += gravityY * h.sensitivity;
 
@@ -181,34 +201,7 @@
                 h.vx += Math.cos(time * h.swaySpeed + h.swayPhase) * 0.03;
                 h.vy += Math.sin(time * h.swaySpeed + h.swayPhase) * 0.03;
 
-                // 3. INTERAKCIA S DOTYKOM (Posúvanie prstom)
-                if (isTouching) {
-                    // Stred bubliny
-                    let bubbleCenterX = h.x + h.size / 2;
-                    let bubbleCenterY = h.y + h.size / 2;
-
-                    let dx = bubbleCenterX - touchX;
-                    let dy = bubbleCenterY - touchY;
-                    let dist = Math.sqrt(dx*dx + dy*dy);
-                    
-                    // Dosah prsta (150px okruh)
-                    let interactRadius = 150; 
-                    
-                    if (dist < interactRadius) {
-                        // Sila klesá so vzdialenosťou (čím bližšie, tým silnejšie)
-                        let force = (interactRadius - dist) / interactRadius; 
-                        
-                        // Normalizovaný vektor smeru
-                        let angle = Math.atan2(dy, dx);
-                        
-                        // Odpudivá sila (push)
-                        let pushStrength = 1.5; 
-                        h.vx += Math.cos(angle) * pushStrength * force;
-                        h.vy += Math.sin(angle) * pushStrength * force;
-                    }
-                }
-
-                // 4. Vzájomná Repulzia
+                // 3. Vzájomná Repulzia (kolízie)
                 for (let j = 0; j < hearts.length; j++) {
                     if (i === j) continue;
                     let h2 = hearts[j];
@@ -230,7 +223,6 @@
                 h.vx *= h.friction;
                 h.vy *= h.friction;
 
-                // Max rýchlosť
                 const maxSpeed = 5.0; 
                 const speed = Math.sqrt(h.vx*h.vx + h.vy*h.vy);
                 if (speed > maxSpeed) {
@@ -241,7 +233,7 @@
                 h.x += h.vx;
                 h.y += h.vy;
 
-                // Infinite Wrap
+                // Infinite Wrap (len pre voľné bubliny)
                 if (h.x > width + buffer) h.x = -buffer;
                 else if (h.x < -buffer) h.x = width + buffer;
 
@@ -266,53 +258,77 @@
             gravityY = y / 45; 
         }
 
-        // --- Touch Eventy ---
+        // --- Nová logika: Drag & Drop (Dotyk + Myš) ---
+        
+        function handleStart(clientX, clientY) {
+            // Hľadáme bublinu pod prstom/myšou
+            for (let i = hearts.length - 1; i >= 0; i--) { // Ideme odzadu (vrchné bubliny prvé)
+                let h = hearts[i];
+                // Väčšia dotyková plocha (padding 20px) pre jednoduchšie chytenie
+                if (clientX >= h.x - 20 && clientX <= h.x + h.size + 20 &&
+                    clientY >= h.y - 20 && clientY <= h.y + h.size + 20) {
+                    
+                    draggedHeart = h;
+                    // Vypočítame posun, aby bublina neskočila stredom na prst
+                    dragOffsetX = clientX - h.x;
+                    dragOffsetY = clientY - h.y;
+                    return; // Našli sme, končíme
+                }
+            }
+        }
+
+        function handleMove(clientX, clientY) {
+            if (draggedHeart) {
+                // Posúvame len tú chytenú
+                draggedHeart.x = clientX - dragOffsetX;
+                draggedHeart.y = clientY - dragOffsetY;
+                
+                // Resetujeme rýchlosť, aby po pustení neodletela zotrvačnosťou zo starej gravitácie
+                draggedHeart.vx = 0;
+                draggedHeart.vy = 0;
+            }
+        }
+
+        function handleEnd() {
+            draggedHeart = null;
+        }
+
+        // Touch eventy
         window.addEventListener('touchstart', (e) => {
-            isTouching = true;
-            touchX = e.touches[0].clientX;
-            touchY = e.touches[0].clientY;
+            handleStart(e.touches[0].clientX, e.touches[0].clientY);
         }, {passive: false});
 
         window.addEventListener('touchmove', (e) => {
-            e.preventDefault(); // Zabráni scrollovaniu pri hraní
-            if (e.touches.length > 0) {
-                isTouching = true;
-                touchX = e.touches[0].clientX;
-                touchY = e.touches[0].clientY;
+            e.preventDefault(); // Stop scroll
+            if (draggedHeart) {
+                handleMove(e.touches[0].clientX, e.touches[0].clientY);
             }
         }, {passive: false});
 
-        window.addEventListener('touchend', () => {
-            isTouching = false;
+        window.addEventListener('touchend', handleEnd);
+
+        // Mouse eventy (pre PC)
+        window.addEventListener('mousedown', (e) => {
+            handleStart(e.clientX, e.clientY);
         });
 
-        // --- Mouse Fallback (pre PC testovanie) ---
-        // Myš slúži na gravitáciu, ale ak klikneš, slúži na interakciu
-        let isMouseDown = false;
-        window.addEventListener('mousedown', (e) => {
-            isMouseDown = true;
-            isTouching = true;
-            touchX = e.clientX;
-            touchY = e.clientY;
-        });
-        window.addEventListener('mouseup', () => {
-            isMouseDown = false;
-            isTouching = false;
-        });
         window.addEventListener('mousemove', (e) => {
-            // Gravitácia na PC (len keď sa nekliká)
-            if (!window.DeviceOrientationEvent || !('ontouchstart' in window)) {
+            // Pre PC ponecháme aj gravitáciu myšou, ak práve nič neťaháme
+            if (!draggedHeart && (!window.DeviceOrientationEvent || !('ontouchstart' in window))) {
                 const centerX = width / 2;
                 const centerY = height / 2;
                 gravityX = (e.clientX - centerX) / centerX;
                 gravityY = (e.clientY - centerY) / centerY;
             }
-            // Interakcia na PC (keď sa kliká a ťahá)
-            if (isMouseDown) {
-                touchX = e.clientX;
-                touchY = e.clientY;
+            
+            // Ak ťaháme, ignorujeme gravitáciu myšou a posúvame bublinu
+            if (draggedHeart) {
+                handleMove(e.clientX, e.clientY);
             }
         });
+
+        window.addEventListener('mouseup', handleEnd);
+
 
         function startGame() {
             startBtn.style.display = 'none';
@@ -320,7 +336,6 @@
             container.style.display = 'block';
             instructionTxt.style.display = 'block';
             
-            // Fade-in pre text
             setTimeout(() => {
                 instructionTxt.style.opacity = 1;
             }, 100);
