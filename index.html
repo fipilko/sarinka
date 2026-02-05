@@ -224,6 +224,7 @@
         // Kalibračné premenné
         let calibrationOffsetBeta = 0;
         let isCalibrated = false;
+        let isOnTable = false; // Flag či je mobil na stole
         
         // Premenné pre detekciu "položenia na stôl"
         let flatStableStartTime = 0;
@@ -445,7 +446,7 @@
             
             // 1. Prvotná kalibrácia
             if (!isCalibrated) {
-                // Ak je uhol medzi 18 a 48
+                // Ak je uhol medzi 18 a 55 (zvýšené z 48)
                 if (rawY >= 18 && rawY <= 55) {
                     calibrationOffsetBeta = rawY;
                 } else {
@@ -463,11 +464,19 @@
                 if (flatStableStartTime === 0) {
                     flatStableStartTime = Date.now();
                 } else if (Date.now() - flatStableStartTime > 1000) {
-                    // Viac ako 1s stabilne na stole -> reset na 0
+                    // Viac ako 1s stabilne na stole -> reset na 0 a nastav flag
                     calibrationOffsetBeta = 0;
+                    isOnTable = true;
                 }
             } else {
                 flatStableStartTime = 0;
+            }
+
+            // 3. Detekcia "zobratia do ruky"
+            // Ak bol na stole a zrazu ho nakloníš nad 15 stupňov
+            if (isOnTable && rawY > 15) {
+                calibrationOffsetBeta = 35; // Reset na default "v ruke"
+                isOnTable = false;
             }
 
             lastBeta = rawY;
