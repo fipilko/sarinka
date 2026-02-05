@@ -223,8 +223,9 @@
 
         // Kalibračné premenné
         let calibrationOffsetBeta = 0;
+        let initialCalibrationBeta = 0; // Uložíme si, aký uhol sme mali na začiatku
         let isCalibrated = false;
-        let isOnTable = false; // Flag či je mobil na stole
+        let isOnTable = false; 
         
         // Premenné pre detekciu "položenia na stôl"
         let flatStableStartTime = 0;
@@ -446,25 +447,24 @@
             
             // 1. Prvotná kalibrácia
             if (!isCalibrated) {
-                // Ak je uhol medzi 18 a 55 (zvýšené z 48)
+                // Ak je uhol v tvojom rozmedzí, uložíme ho
                 if (rawY >= 18 && rawY <= 55) {
-                    calibrationOffsetBeta = rawY;
+                    initialCalibrationBeta = rawY;
                 } else {
-                    // Inak default 35
-                    calibrationOffsetBeta = 35;
+                    // Ak je mimo, uložíme default 40
+                    initialCalibrationBeta = 40;
                 }
+                calibrationOffsetBeta = initialCalibrationBeta;
                 isCalibrated = true;
             }
 
-            // 2. Detekcia "na stole" (0 +/- 3 stupne) a malý pohyb
+            // 2. Detekcia "na stole"
             const speed = Math.abs(rawY - lastBeta) + Math.abs(rawX - lastGamma);
             
-            // Ak je v rovine 0 +/- 3 a hýbe sa veľmi málo
             if (Math.abs(rawY) <= 3 && Math.abs(rawX) <= 3 && speed < 0.5) {
                 if (flatStableStartTime === 0) {
                     flatStableStartTime = Date.now();
                 } else if (Date.now() - flatStableStartTime > 1000) {
-                    // Viac ako 1s stabilne na stole -> reset na 0 a nastav flag
                     calibrationOffsetBeta = 0;
                     isOnTable = true;
                 }
@@ -473,16 +473,15 @@
             }
 
             // 3. Detekcia "zobratia do ruky"
-            // Ak bol na stole a zrazu ho nakloníš nad 15 stupňov
+            // Vrátime sa k ULOŽENEJ hodnote, nie natvrdo k 35
             if (isOnTable && rawY > 15) {
-                calibrationOffsetBeta = 35; // Reset na default "v ruke"
+                calibrationOffsetBeta = initialCalibrationBeta;
                 isOnTable = false;
             }
 
             lastBeta = rawY;
             lastGamma = rawX;
 
-            // Výpočet finálneho náklonu s offsetom
             const effectiveY = rawY - calibrationOffsetBeta;
 
             tiltX = rawX / 45; 
