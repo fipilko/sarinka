@@ -167,21 +167,22 @@
             border-radius: 20px;
         }
 
-        /* Centrálny obrázok s Slideshow */
+        /* Centrálny obrázok s Slideshow - UPRAVENÉ */
         #center-image {
             position: absolute;
             top: 40%;
             left: 50%;
             transform: translate(-50%, -50%);
-            width: 35vw; 
-            max-width: 250px;
-            height: 35vh;
-            max-height: 300px;
-            background-color: #000; /* Čierne pozadie pre fotky */
+            /* Odstránené fixné rozmery, nahradené dynamickými v JS */
+            width: 200px; /* Default */
+            height: 200px; /* Default */
+            background-color: #fff;
             border-radius: 15px;
             box-shadow: 0 10px 30px rgba(0,0,0,0.2);
             z-index: 2;
-            overflow: hidden; /* Aby fotky nepretrčali */
+            overflow: hidden; 
+            /* Pridaná transition pre plynulú zmenu veľkosti */
+            transition: width 0.5s ease, height 0.5s ease;
         }
 
         #center-image img {
@@ -190,7 +191,7 @@
             left: 0;
             width: 100%;
             height: 100%;
-            object-fit: contain; /* Celý obrázok v ráme */
+            object-fit: contain; /* Obrázok sa prispôsobí rámu */
             opacity: 0;
             transition: opacity 1s ease-in-out;
         }
@@ -421,7 +422,7 @@
 
     <div id="hearts-container"></div>
     <div id="instruction">Chyť bublinky a vhoď ich do košíkov!</div>
-    <button id="start-btn">❤️Začať❤️</button>
+    <button id="start-btn">❤️🧡💛💚💙💜🖤🤍 Ahoj 🤍🖤💜💙💚💛🧡❤️</button>
 
     <script>
         const container = document.getElementById('hearts-container');
@@ -440,6 +441,7 @@
         
         const successMessageEl = document.getElementById('success-message');
         const basketGoneEl = document.getElementById('basket-gone-message');
+        const centerImageFrame = document.getElementById('center-image');
         
         // Slideshow prvky
         const slide1 = document.getElementById('slide-1');
@@ -470,32 +472,56 @@
 
         const activeDrags = new Map();
 
-        // --- SLIDESHOW LOGIC ---
+        // --- SLIDESHOW & RESIZE LOGIC ---
         let currentSlideIndex = 1;
         const totalSlides = 16;
         let activeImgElement = slide1;
         let nextImgElement = slide2;
 
+        // Funkcia na úpravu veľkosti rámu podľa obrázka
+        function updateFrameSize(imgElement) {
+            // Maximálne rozmery (aby neprekrýval košíky a zmestil sa)
+            // Cca 40% šírky a 35% výšky obrazovky
+            const maxW = window.innerWidth * 0.40;
+            const maxH = window.innerHeight * 0.35;
+            
+            // Zistíme natívne rozmery (alebo fallback, ak ešte nie sú načítané)
+            const natW = imgElement.naturalWidth || 500;
+            const natH = imgElement.naturalHeight || 500;
+            
+            // Vypočítame scale factor tak, aby sa obrázok zmestil do max boxu
+            // Math.min zabezpečí, že nepresiahneme ani šírku ani výšku (contain)
+            const scale = Math.min(maxW / natW, maxH / natH);
+            
+            // Nové rozmery rámu
+            const finalW = natW * scale;
+            const finalH = natH * scale;
+            
+            // Aplikujeme na rám
+            centerImageFrame.style.width = `${finalW}px`;
+            centerImageFrame.style.height = `${finalH}px`;
+        }
+
         function startSlideshow() {
             setInterval(() => {
-                // Pripravíme ďalší index
                 currentSlideIndex++;
                 if (currentSlideIndex > totalSlides) currentSlideIndex = 1;
                 
-                // Nastavíme zdroj pre "zadný" (neviditeľný) obrázok
                 nextImgElement.src = `Fotky/center/${currentSlideIndex}.jpg`;
                 
-                // Počkáme chvíľu, kým sa načíta (pre istotu, aj keď fade to zakryje)
-                // Swap triedy 'active' pre fade efekt
-                nextImgElement.classList.add('active');
-                activeImgElement.classList.remove('active');
+                // Keď sa načíta, prepočítame rám a swapneme
+                nextImgElement.onload = () => {
+                    updateFrameSize(nextImgElement);
+                    
+                    nextImgElement.classList.add('active');
+                    activeImgElement.classList.remove('active');
+                    
+                    const temp = activeImgElement;
+                    activeImgElement = nextImgElement;
+                    nextImgElement = temp;
+                };
                 
-                // Swap premenných pre ďalšie kolo
-                const temp = activeImgElement;
-                activeImgElement = nextImgElement;
-                nextImgElement = temp;
-                
-            }, 5000); // 5 sekúnd
+            }, 5000); 
         }
 
         // --- HEART CREATION ---
@@ -930,6 +956,13 @@
             initHearts();
             animate();
             startSlideshow(); // Start slideshow
+            
+            // Nastavenie veľkosti pre prvý slide
+            if (slide1.complete) {
+                updateFrameSize(slide1);
+            } else {
+                slide1.onload = () => updateFrameSize(slide1);
+            }
         }
 
         startBtn.addEventListener('click', () => {
