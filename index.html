@@ -46,6 +46,30 @@
             padding: 0 10px;
             box-sizing: border-box;
         }
+        
+        /* Nový text pre "Hupsik" moment */
+        #oops-text {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            /* ZMENA: Obyčajný font namiesto Pacifico */
+            font-family: sans-serif; 
+            font-size: 20px; /* Trochu menšie pre obyčajný text */
+            font-weight: bold;
+            color: #d32f2f; /* Červená */
+            background: rgba(255, 255, 255, 0.95);
+            padding: 20px 30px;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            z-index: 20; /* Nad všetkým */
+            pointer-events: none;
+            display: none; /* Skryté defaultne */
+            text-align: center;
+            width: 80%;
+            max-width: 400px;
+            border: 2px solid #ffcdd2;
+        }
 
         #center-image {
             position: absolute;
@@ -90,6 +114,12 @@
             color: white;
             box-sizing: border-box;
             z-index: 1;
+            transition: border-bottom-color 0.3s; /* Animácia pre zmiznutie dna */
+        }
+        
+        /* Trieda pre "rozbitý" košík - dno zmizne */
+        .basket.broken {
+            border-bottom-color: transparent !important;
         }
 
         .counter {
@@ -202,6 +232,8 @@
             <span>NIE</span>
             <div id="count-no" class="counter">0</div>
         </div>
+
+        <div id="oops-text">Hupsik, asi som zabudol ten košík opraviť 🤭</div>
     </div>
 
     <div id="hearts-container"></div>
@@ -217,20 +249,24 @@
         const basketNoEl = document.getElementById('basket-no');
         const countYesEl = document.getElementById('count-yes');
         const countNoEl = document.getElementById('count-no');
+        const oopsTextEl = document.getElementById('oops-text');
         
         let tiltX = 0; 
         let tiltY = 0; 
 
         // Kalibračné premenné
         let calibrationOffsetBeta = 0;
-        let initialCalibrationBeta = 0; // Uložíme si, aký uhol sme mali na začiatku
+        let initialCalibrationBeta = 0; 
         let isCalibrated = false;
         let isOnTable = false; 
         
-        // Premenné pre detekciu "položenia na stôl"
         let flatStableStartTime = 0;
         let lastBeta = 0;
         let lastGamma = 0;
+
+        // Stav rozbitého košíka
+        let isBasketBroken = false;
+        let basketBreakTimeout = null;
         
         const hearts = [];
         const numHearts = 40; 
@@ -313,6 +349,23 @@
             return null;
         }
 
+        // Funkcia na "rozbitie" košíka
+        function breakBasket() {
+            if (isBasketBroken) return; // Ak je už rozbitý, nerobíme nič navyše (timer beží)
+            
+            isBasketBroken = true;
+            basketNoEl.classList.add('broken');
+            oopsTextEl.style.display = 'block';
+
+            if (basketBreakTimeout) clearTimeout(basketBreakTimeout);
+            
+            basketBreakTimeout = setTimeout(() => {
+                isBasketBroken = false;
+                basketNoEl.classList.remove('broken');
+                oopsTextEl.style.display = 'none';
+            }, 3000);
+        }
+
         function updateFloatingPhysics(h, time, buffer) {
             h.vx += tiltX * h.sensitivity * 0.5; 
             h.vy += tiltY * h.sensitivity * 0.5;
@@ -341,6 +394,15 @@
             let nextX = h.x + h.vx;
             let nextY = h.y + h.vy;
 
+            // Logika pre košík NIE (trap door)
+            if (h.currentBasket === 'no') {
+                // Ak ešte nie je rozbitý a bublina sa blíži ku dnu, rozbijeme ho
+                if (!isBasketBroken && nextY + h.size > rect.bottom - 15) {
+                    breakBasket();
+                }
+            }
+
+            // Kolízie so stenami
             if (nextX < rect.left) {
                 nextX = rect.left;
                 h.vx *= -0.6; 
@@ -350,14 +412,29 @@
                 h.vx *= -0.6;
             }
 
+            // Kolízia s dnom
             if (nextY + h.size > rect.bottom) {
-                nextY = rect.bottom - h.size;
-                h.vy *= -0.5; 
+                // Ak je to košík NIE a je rozbitý, ignorujeme dno -> padá ďalej
+                if (h.currentBasket === 'no' && isBasketBroken) {
+                    // Necháme ho padnúť (žiadna korekcia nextY)
+                } else {
+                    // Štandardný odraz od dna
+                    nextY = rect.bottom - h.size;
+                    h.vy *= -0.5; 
+                }
             }
 
+            // Opustenie košíka vrchom
             if (nextY < rect.top - h.size) {
                 h.currentBasket = null;
                 h.vy -= 2; 
+            }
+            
+            // Opustenie košíka spodkom (prepade cez dieru)
+            // Keď prepadne dostatočne hlboko pod košík
+            if (h.currentBasket === 'no' && nextY > rect.bottom + h.size) {
+                h.currentBasket = null; // Prestane byť v košíku -> počítadlo klesne
+                // Nasledujúci frame prevezme floating physics
             }
 
             h.x = nextX;
@@ -445,20 +522,16 @@
             const rawX = event.gamma || 0; 
             const rawY = event.beta || 0;
             
-            // 1. Prvotná kalibrácia
             if (!isCalibrated) {
-                // Ak je uhol v tvojom rozmedzí, uložíme ho
                 if (rawY >= 18 && rawY <= 55) {
                     initialCalibrationBeta = rawY;
                 } else {
-                    // Ak je mimo, uložíme default 40
                     initialCalibrationBeta = 40;
                 }
                 calibrationOffsetBeta = initialCalibrationBeta;
                 isCalibrated = true;
             }
 
-            // 2. Detekcia "na stole"
             const speed = Math.abs(rawY - lastBeta) + Math.abs(rawX - lastGamma);
             
             if (Math.abs(rawY) <= 3 && Math.abs(rawX) <= 3 && speed < 0.5) {
@@ -472,8 +545,6 @@
                 flatStableStartTime = 0;
             }
 
-            // 3. Detekcia "zobratia do ruky"
-            // Vrátime sa k ULOŽENEJ hodnote, nie natvrdo k 35
             if (isOnTable && rawY > 15) {
                 calibrationOffsetBeta = initialCalibrationBeta;
                 isOnTable = false;
