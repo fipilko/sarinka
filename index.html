@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Srdiečkové Bubliny 2</title>
+    <title>Srdiečkové Bubliny 3</title>
     <style>
         body {
             margin: 0;
@@ -25,7 +25,7 @@
             border-radius: 15px;
             box-shadow: 0 10px 30px rgba(0,0,0,0.2);
             z-index: 1; 
-            display: flex;
+            display: none; /* Na začiatku skryté */
             align-items: center;
             justify-content: center;
             color: white;
@@ -40,6 +40,7 @@
             height: 100%;
             z-index: 2; 
             pointer-events: none; 
+            display: none; /* Na začiatku skryté */
         }
 
         .heart {
@@ -47,20 +48,27 @@
             will-change: transform;
         }
 
+        /* Tlačidlo teraz v strede */
         #start-btn {
             position: absolute;
-            bottom: 20px;
+            top: 50%;
             left: 50%;
-            transform: translateX(-50%);
-            padding: 15px 30px;
+            transform: translate(-50%, -50%);
+            padding: 20px 50px;
             background: white;
             border: none;
-            border-radius: 30px;
-            font-size: 16px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            border-radius: 50px;
+            font-size: 24px;
+            font-weight: bold;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.15);
             cursor: pointer;
             z-index: 10;
             color: #333;
+            transition: transform 0.2s;
+        }
+        
+        #start-btn:active {
+            transform: translate(-50%, -50%) scale(0.95);
         }
     </style>
 </head>
@@ -72,16 +80,17 @@
 
     <div id="hearts-container"></div>
 
-    <button id="start-btn">Spustiť bublinky (Povoliť Gyroskop)</button>
+    <button id="start-btn">Ahoj</button>
 
     <script>
         const container = document.getElementById('hearts-container');
         const startBtn = document.getElementById('start-btn');
+        const centerImage = document.getElementById('center-image');
         
         let gravityX = 0;
         let gravityY = 0;
         const hearts = [];
-        const numHearts = 35; // Trochu menej, aby mali viac miesta
+        const numHearts = 35; 
         
         let width = window.innerWidth;
         let height = window.innerHeight;
@@ -110,16 +119,19 @@
                 element: element,
                 x: Math.random() * (width - size),
                 y: Math.random() * (height - size),
-                // Veľmi pomalý počiatočný pohyb
-                vx: (Math.random() - 0.5) * 0.5,
-                vy: (Math.random() - 0.5) * 0.5,
+                // Zvýšená počiatočná rýchlosť
+                vx: (Math.random() - 0.5) * 4,
+                vy: (Math.random() - 0.5) * 4,
                 size: size,
-                friction: 0.96 // Vyššie trenie = rýchlejšie spomaľovanie
+                friction: 0.98 // Menšie trenie = dlhší pohyb
             };
         }
 
-        for (let i = 0; i < numHearts; i++) {
-            hearts.push(createHeart());
+        // Inicializáciu sŕdc spravíme až po štarte
+        function initHearts() {
+            for (let i = 0; i < numHearts; i++) {
+                hearts.push(createHeart());
+            }
         }
 
         function animate() {
@@ -127,11 +139,11 @@
             for (let i = 0; i < hearts.length; i++) {
                 let h = hearts[i];
 
-                // Jemná gravitácia (oveľa menší násobič 0.05)
-                h.vx += gravityX * 0.05;
-                h.vy += gravityY * 0.05;
+                // Zvýšená citlivosť na gravitáciu (0.05 -> 0.15)
+                h.vx += gravityX * 0.15;
+                h.vy += gravityY * 0.15;
 
-                // Repulzia - kontrola voči ostatným bublinám
+                // Repulzia
                 for (let j = 0; j < hearts.length; j++) {
                     if (i === j) continue;
                     let h2 = hearts[j];
@@ -140,17 +152,14 @@
                     let dy = h.y - h2.y;
                     let dist = Math.sqrt(dx*dx + dy*dy);
                     
-                    // Minimálna vzdialenosť (súčet polomerov + malá rezerva)
-                    // Bubliny sú štvorce, takže size je priemer. size/2 je polomer.
                     let minDist = (h.size/2 + h2.size/2) * 1.2; 
 
                     if (dist < minDist && dist > 0) {
-                        // Vypočítame silu odpudenia
-                        let force = (minDist - dist) / minDist; // 0 (ďaleko) až 1 (prekryté)
+                        let force = (minDist - dist) / minDist; 
                         
-                        // Jemné odtlačenie
-                        let pushX = (dx / dist) * force * 0.15;
-                        let pushY = (dy / dist) * force * 0.15;
+                        // Silnejšie odtlačenie pri kolízii
+                        let pushX = (dx / dist) * force * 0.3;
+                        let pushY = (dy / dist) * force * 0.3;
 
                         h.vx += pushX;
                         h.vy += pushY;
@@ -160,12 +169,11 @@
 
             // 2. Pohyb a limity
             for (let h of hearts) {
-                // Trenie
                 h.vx *= h.friction;
                 h.vy *= h.friction;
 
-                // Limit maximálnej rýchlosti (aby lietali pomaly)
-                const maxSpeed = 1.5; 
+                // Zvýšená maximálna rýchlosť (1.5 -> 4.5)
+                const maxSpeed = 4.5; 
                 const speed = Math.sqrt(h.vx*h.vx + h.vy*h.vy);
                 if (speed > maxSpeed) {
                     h.vx = (h.vx / speed) * maxSpeed;
@@ -175,11 +183,10 @@
                 h.x += h.vx;
                 h.y += h.vy;
 
-                // Odrážanie od stien (zachovanie energie trochu tlmíme)
-                if (h.x <= 0) { h.x = 0; h.vx *= -0.5; }
-                if (h.x >= width - h.size) { h.x = width - h.size; h.vx *= -0.5; }
-                if (h.y <= 0) { h.y = 0; h.vy *= -0.5; }
-                if (h.y >= height - h.size) { h.y = height - h.size; h.vy *= -0.5; }
+                if (h.x <= 0) { h.x = 0; h.vx *= -0.7; }
+                if (h.x >= width - h.size) { h.x = width - h.size; h.vx *= -0.7; }
+                if (h.y <= 0) { h.y = 0; h.vy *= -0.7; }
+                if (h.y >= height - h.size) { h.y = height - h.size; h.vy *= -0.7; }
 
                 h.element.style.transform = `translate(${h.x}px, ${h.y}px)`;
             }
@@ -195,20 +202,28 @@
             const x = event.gamma || 0; 
             const y = event.beta || 0;
 
-            // Zvýšil som deliteľ (80), aby bola zmena gravitácie lenivejšia
-            gravityX = x / 80; 
-            gravityY = y / 80; 
+            // Znížený deliteľ (80 -> 45) pre rýchlejšiu reakciu
+            gravityX = x / 45; 
+            gravityY = y / 45; 
         }
 
         window.addEventListener('mousemove', (e) => {
             if (!window.DeviceOrientationEvent || !('ontouchstart' in window)) {
                 const centerX = width / 2;
                 const centerY = height / 2;
-                // Aj myšou to ovládame jemnejšie
-                gravityX = (e.clientX - centerX) / centerX * 0.5;
-                gravityY = (e.clientY - centerY) / centerY * 0.5;
+                gravityX = (e.clientX - centerX) / centerX;
+                gravityY = (e.clientY - centerY) / centerY;
             }
         });
+
+        // Hlavná logika spustenia
+        function startGame() {
+            startBtn.style.display = 'none';
+            centerImage.style.display = 'flex';
+            container.style.display = 'block';
+            initHearts();
+            animate();
+        }
 
         startBtn.addEventListener('click', () => {
             if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
@@ -216,19 +231,19 @@
                     .then(permissionState => {
                         if (permissionState === 'granted') {
                             window.addEventListener('deviceorientation', handleOrientation);
-                            startBtn.style.display = 'none';
-                        } else {
-                            alert('Povolenie zamietnuté.');
                         }
+                        // Hru spustíme aj keď zamietne, len bez gyra
+                        startGame();
                     })
-                    .catch(console.error);
+                    .catch(e => {
+                        console.error(e);
+                        startGame();
+                    });
             } else {
                 window.addEventListener('deviceorientation', handleOrientation);
-                startBtn.style.display = 'none';
+                startGame();
             }
         });
-
-        animate();
 
     </script>
 </body>
