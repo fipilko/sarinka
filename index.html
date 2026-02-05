@@ -445,8 +445,8 @@
             
             // 1. Prvotná kalibrácia
             if (!isCalibrated) {
-                // Ak je uhol v 35 +/- 6
-                if (Math.abs(rawY - 35) <= 6) {
+                // Ak je uhol medzi 18 a 48
+                if (rawY >= 18 && rawY <= 55) {
                     calibrationOffsetBeta = rawY;
                 } else {
                     // Inak default 35
