@@ -47,28 +47,111 @@
             box-sizing: border-box;
         }
         
-        /* Nový text pre "Hupsik" moment */
         #oops-text {
             position: absolute;
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            /* ZMENA: Obyčajný font namiesto Pacifico */
             font-family: sans-serif; 
-            font-size: 20px; /* Trochu menšie pre obyčajný text */
+            font-size: 20px; 
             font-weight: bold;
-            color: #d32f2f; /* Červená */
+            color: #d32f2f; 
             background: rgba(255, 255, 255, 0.95);
             padding: 20px 30px;
             border-radius: 20px;
             box-shadow: 0 10px 30px rgba(0,0,0,0.3);
-            z-index: 20; /* Nad všetkým */
+            z-index: 20; 
             pointer-events: none;
-            display: none; /* Skryté defaultne */
+            display: none; 
             text-align: center;
             width: 80%;
             max-width: 400px;
             border: 2px solid #ffcdd2;
+        }
+
+        #warning-message {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            z-index: 25;
+            animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            pointer-events: none;
+        }
+
+        #warning-image {
+            width: 200px; 
+            height: 150px;
+            background-color: #ff9800; 
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            display: flex; 
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            font-size: 18px;
+            border: 3px solid white;
+            margin-bottom: 15px;
+        }
+
+        #warning-caption {
+            font-family: sans-serif;
+            font-size: 22px;
+            font-weight: bold;
+            color: #d32f2f;
+            background: rgba(255, 255, 255, 0.9);
+            padding: 10px 20px;
+            border-radius: 15px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+
+        #success-message {
+            position: absolute;
+            top: 40%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            display: none; 
+            flex-direction: column;
+            align-items: center;
+            z-index: 30;
+            animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        @keyframes popIn {
+            from { transform: translate(-50%, -50%) scale(0.5); opacity: 0; }
+            to { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+        }
+
+        #success-image {
+            width: 35vw; 
+            max-width: 200px;
+            height: 35vh;
+            max-height: 250px;
+            background-color: #ff69b4; 
+            border-radius: 15px;
+            box-shadow: 0 10px 40px rgba(255, 105, 180, 0.5);
+            display: flex; 
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            font-size: 20px;
+            border: 4px solid white;
+        }
+
+        #success-caption {
+            font-family: 'Pacifico', cursive;
+            font-size: 32px;
+            color: #6a5acd;
+            margin-top: 15px;
+            text-shadow: 2px 2px 0px rgba(255, 255, 255, 0.8);
+            background: rgba(255, 255, 255, 0.8);
+            padding: 5px 15px;
+            border-radius: 20px;
         }
 
         #center-image {
@@ -91,7 +174,6 @@
             z-index: 2;
         }
 
-        /* U-čkové košíky */
         .basket {
             position: absolute;
             bottom: 5%; 
@@ -102,24 +184,68 @@
             border-bottom: 8px solid rgba(255, 255, 255, 0.8);
             border-top: none;
             border-radius: 0 0 25px 25px;
-            
             display: flex;
             flex-direction: column;
             align-items: center; 
             justify-content: flex-end;
             padding-bottom: 10px;
-            
             font-weight: bold;
             font-size: 24px;
             color: white;
             box-sizing: border-box;
             z-index: 1;
-            transition: border-bottom-color 0.3s; /* Animácia pre zmiznutie dna */
+            transition: border-bottom-color 0.3s, opacity 0.5s; 
         }
         
-        /* Trieda pre "rozbitý" košík - dno zmizne */
         .basket.broken {
             border-bottom-color: transparent !important;
+        }
+
+        /* Nový štýl pre "Hups" správu keď košík zmizne */
+        #basket-gone-message {
+            position: absolute;
+            bottom: 5%;
+            right: 5%; /* Na mieste červeného košíka */
+            width: 28vw;
+            display: none; /* Default hidden */
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            pointer-events: none;
+            z-index: 1;
+            animation: fadeIn 0.5s;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        #basket-gone-image {
+            width: 80px;
+            height: 80px;
+            background-color: #9e9e9e; /* Sivá */
+            border-radius: 15px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            border: 2px solid white;
+            margin-bottom: 10px;
+            font-size: 14px;
+            text-align: center;
+        }
+
+        #basket-gone-caption {
+            font-family: sans-serif;
+            font-size: 18px;
+            font-weight: bold;
+            color: #6a5acd;
+            background: rgba(255, 255, 255, 0.8);
+            padding: 5px 15px;
+            border-radius: 15px;
         }
 
         .counter {
@@ -228,12 +354,28 @@
         
         <div id="center-image">OBRÁZOK</div>
         
+        <div id="success-message">
+            <div id="success-image">OBRÁZOK 2</div>
+            <div id="success-caption">Jejoo! ❤️</div>
+        </div>
+        
         <div id="basket-no" class="basket">
             <span>NIE</span>
             <div id="count-no" class="counter">0</div>
         </div>
 
+        <!-- Náhrada za zmiznutý košík -->
+        <div id="basket-gone-message">
+            <div id="basket-gone-image">OBRÁZOK 6</div>
+            <div id="basket-gone-caption">Hups 🤷‍♂️</div>
+        </div>
+
         <div id="oops-text">Hupsik, asi som zabudol ten košík opraviť 🤭</div>
+
+        <div id="warning-message">
+            <div id="warning-image">OBRÁZOK</div>
+            <div id="warning-caption">Text</div>
+        </div>
     </div>
 
     <div id="hearts-container"></div>
@@ -249,12 +391,18 @@
         const basketNoEl = document.getElementById('basket-no');
         const countYesEl = document.getElementById('count-yes');
         const countNoEl = document.getElementById('count-no');
+        
         const oopsTextEl = document.getElementById('oops-text');
+        const warningMsgEl = document.getElementById('warning-message');
+        const warningImgEl = document.getElementById('warning-image');
+        const warningCapEl = document.getElementById('warning-caption');
+        
+        const successMessageEl = document.getElementById('success-message');
+        const basketGoneEl = document.getElementById('basket-gone-message');
         
         let tiltX = 0; 
         let tiltY = 0; 
 
-        // Kalibračné premenné
         let calibrationOffsetBeta = 0;
         let initialCalibrationBeta = 0; 
         let isCalibrated = false;
@@ -264,8 +412,9 @@
         let lastBeta = 0;
         let lastGamma = 0;
 
-        // Stav rozbitého košíka
         let isBasketBroken = false;
+        let isBasketRemoved = false; 
+        let noBasketCount = 0; 
         let basketBreakTimeout = null;
         
         const hearts = [];
@@ -341,6 +490,8 @@
 
             const baskets = ['yes', 'no'];
             for (let type of baskets) {
+                if (type === 'no' && isBasketRemoved) continue;
+
                 const rect = getBasketRect(type);
                 if (hCx > rect.left && hCx < rect.right && hCy > rect.top && hCy < rect.bottom) {
                     return type;
@@ -349,13 +500,42 @@
             return null;
         }
 
-        // Funkcia na "rozbitie" košíka
+        function showWarning(text, imgText, color) {
+            warningCapEl.innerText = text;
+            warningImgEl.innerText = imgText;
+            warningImgEl.style.backgroundColor = color;
+            warningMsgEl.style.display = 'flex';
+        }
+
+        function hideWarning() {
+            warningMsgEl.style.display = 'none';
+        }
+
         function breakBasket() {
-            if (isBasketBroken) return; // Ak je už rozbitý, nerobíme nič navyše (timer beží)
+            if (isBasketBroken || isBasketRemoved) return; 
             
+            noBasketCount++;
+            
+            if (noBasketCount >= 5) {
+                isBasketRemoved = true;
+                basketNoEl.style.display = 'none';
+                basketGoneEl.style.display = 'flex'; // Zobrazí sa "Hups" box
+                return;
+            }
+
             isBasketBroken = true;
             basketNoEl.classList.add('broken');
-            oopsTextEl.style.display = 'block';
+
+            if (noBasketCount === 1) {
+                oopsTextEl.innerText = "Hupsik, asi som zabudol ten košík opraviť 🤭";
+                oopsTextEl.style.display = 'block';
+            } else if (noBasketCount === 2) {
+                showWarning("Ty čo skúšaš?!", "OBRÁZOK 3", "#ff9800"); 
+            } else if (noBasketCount === 3) {
+                showWarning("Prestaň!", "OBRÁZOK 4", "#e65100"); 
+            } else if (noBasketCount === 4) {
+                showWarning("Varujem ťa!", "OBRÁZOK 5", "#b71c1c"); 
+            }
 
             if (basketBreakTimeout) clearTimeout(basketBreakTimeout);
             
@@ -363,6 +543,7 @@
                 isBasketBroken = false;
                 basketNoEl.classList.remove('broken');
                 oopsTextEl.style.display = 'none';
+                hideWarning();
             }, 3000);
         }
 
@@ -394,15 +575,12 @@
             let nextX = h.x + h.vx;
             let nextY = h.y + h.vy;
 
-            // Logika pre košík NIE (trap door)
             if (h.currentBasket === 'no') {
-                // Ak ešte nie je rozbitý a bublina sa blíži ku dnu, rozbijeme ho
-                if (!isBasketBroken && nextY + h.size > rect.bottom - 15) {
+                if (!isBasketBroken && !isBasketRemoved && nextY + h.size > rect.bottom - 15) {
                     breakBasket();
                 }
             }
 
-            // Kolízie so stenami
             if (nextX < rect.left) {
                 nextX = rect.left;
                 h.vx *= -0.6; 
@@ -412,29 +590,22 @@
                 h.vx *= -0.6;
             }
 
-            // Kolízia s dnom
             if (nextY + h.size > rect.bottom) {
-                // Ak je to košík NIE a je rozbitý, ignorujeme dno -> padá ďalej
-                if (h.currentBasket === 'no' && isBasketBroken) {
-                    // Necháme ho padnúť (žiadna korekcia nextY)
+                if (h.currentBasket === 'no' && (isBasketBroken || isBasketRemoved)) {
+                    // Prepadne
                 } else {
-                    // Štandardný odraz od dna
                     nextY = rect.bottom - h.size;
                     h.vy *= -0.5; 
                 }
             }
 
-            // Opustenie košíka vrchom
             if (nextY < rect.top - h.size) {
                 h.currentBasket = null;
                 h.vy -= 2; 
             }
             
-            // Opustenie košíka spodkom (prepade cez dieru)
-            // Keď prepadne dostatočne hlboko pod košík
             if (h.currentBasket === 'no' && nextY > rect.bottom + h.size) {
-                h.currentBasket = null; // Prestane byť v košíku -> počítadlo klesne
-                // Nasledujúci frame prevezme floating physics
+                h.currentBasket = null; 
             }
 
             h.x = nextX;
@@ -509,6 +680,16 @@
 
             countYesEl.innerText = cYes;
             countNoEl.innerText = cNo;
+
+            if (cYes >= 10) {
+                if (successMessageEl.style.display !== 'flex') {
+                    successMessageEl.style.display = 'flex';
+                }
+            } else {
+                if (successMessageEl.style.display !== 'none') {
+                    successMessageEl.style.display = 'none';
+                }
+            }
 
             requestAnimationFrame(animate);
         }
