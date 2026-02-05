@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Srdiečkové Bubliny Multitouch</title>
+    <title>Valentínka pre Sarinku</title>
+    <link href="https://fonts.googleapis.com/css2?family=Pacifico&display=swap" rel="stylesheet">
     <style>
         body {
             margin: 0;
@@ -21,22 +22,88 @@
             cursor: grabbing;
         }
 
+        #game-layer {
+            display: none; 
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 1;
+        }
+
+        #valentine-text {
+            position: absolute;
+            top: 5%;
+            width: 100%;
+            text-align: center;
+            font-family: 'Pacifico', cursive;
+            font-size: 28px;
+            color: #6a5acd;
+            text-shadow: 2px 2px 0px rgba(255, 255, 255, 0.5);
+            z-index: 5;
+            pointer-events: none;
+            padding: 0 10px;
+            box-sizing: border-box;
+        }
+
         #center-image {
             position: absolute;
-            top: 50%;
+            top: 40%;
             left: 50%;
             transform: translate(-50%, -50%);
-            width: 300px;
-            height: 400px;
+            width: 35vw; 
+            max-width: 200px;
+            height: 35vh;
+            max-height: 250px;
             background-color: #007bff;
             border-radius: 15px;
             box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-            z-index: 1; 
-            display: none; 
+            display: flex; 
             align-items: center;
             justify-content: center;
             color: white;
             font-weight: bold;
+            z-index: 2;
+        }
+
+        /* U-čkové košíky */
+        .basket {
+            position: absolute;
+            bottom: 5%; 
+            width: 28vw;
+            height: 35vh; 
+            /* U-shape borders */
+            border-left: 8px solid rgba(255, 255, 255, 0.8);
+            border-right: 8px solid rgba(255, 255, 255, 0.8);
+            border-bottom: 8px solid rgba(255, 255, 255, 0.8);
+            border-top: none;
+            border-radius: 0 0 25px 25px; /* Zaoblené dno */
+            
+            display: flex;
+            align-items: flex-end; 
+            justify-content: center;
+            padding-bottom: 10px;
+            
+            font-weight: bold;
+            font-size: 24px;
+            color: white;
+            box-sizing: border-box;
+            z-index: 1;
+        }
+
+        #basket-yes {
+            left: 5%;
+            background-color: rgba(76, 175, 80, 0.3); /* Priehľadné vnútro */
+            box-shadow: 0 0 15px rgba(76, 175, 80, 0.4);
+            text-shadow: 0 1px 2px black;
+        }
+
+        #basket-no {
+            right: 5%;
+            background-color: rgba(244, 67, 54, 0.3); 
+            box-shadow: 0 0 15px rgba(244, 67, 54, 0.4);
+            text-shadow: 0 1px 2px black;
         }
 
         #hearts-container {
@@ -45,7 +112,7 @@
             left: 0;
             width: 100%;
             height: 100%;
-            z-index: 2; 
+            z-index: 3; 
             pointer-events: none; 
             display: none; 
         }
@@ -79,11 +146,11 @@
 
         #instruction {
             position: absolute;
-            bottom: 40px;
+            bottom: 20px;
             width: 100%;
             text-align: center;
             color: #6a5acd; 
-            font-size: 18px;
+            font-size: 16px;
             pointer-events: none;
             opacity: 0; 
             transition: opacity 1.5s;
@@ -96,31 +163,36 @@
 </head>
 <body>
 
-    <div id="center-image">
-        OBRÁZOK
+    <div id="game-layer">
+        <h1 id="valentine-text">Budeš moja valentínka Sarinka?</h1>
+        
+        <div id="basket-yes" class="basket">ÁNO</div>
+        <div id="center-image">OBRÁZOK</div>
+        <div id="basket-no" class="basket">NIE</div>
     </div>
 
     <div id="hearts-container"></div>
-    
-    <div id="instruction">Chyť viac bubliniek naraz!</div>
-
+    <div id="instruction">Chyť bublinky a vhoď ich do košíkov!</div>
     <button id="start-btn">Ahoj</button>
 
     <script>
         const container = document.getElementById('hearts-container');
         const startBtn = document.getElementById('start-btn');
-        const centerImage = document.getElementById('center-image');
+        const gameLayer = document.getElementById('game-layer');
         const instructionTxt = document.getElementById('instruction');
+        const basketYesEl = document.getElementById('basket-yes');
+        const basketNoEl = document.getElementById('basket-no');
         
-        let gravityX = 0;
-        let gravityY = 0;
+        // Fyzikálne premenné
+        let tiltX = 0; // Raw tilt
+        let tiltY = 0; 
+        
         const hearts = [];
-        const numHearts = 60; 
+        const numHearts = 40; 
         
         let width = window.innerWidth;
         let height = window.innerHeight;
 
-        // Mapa aktívnych ťahaní: Key = touchId, Value = { heart, offX, offY }
         const activeDrags = new Map();
 
         function createHeart() {
@@ -160,7 +232,8 @@
                 friction: 0.98,
                 swayPhase: Math.random() * Math.PI * 2,
                 swaySpeed: 0.001 + Math.random() * 0.002,
-                isDragged: false // Flag či je práve chytená
+                isDragged: false,
+                currentBasket: null // 'yes' alebo 'no' ak je vnútri
             };
         }
 
@@ -170,6 +243,102 @@
             }
         }
 
+        function getBasketRect(type) {
+            const el = type === 'yes' ? basketYesEl : basketNoEl;
+            const rect = el.getBoundingClientRect();
+            // Pridáme offset pre hrúbku stien
+            return {
+                left: rect.left + 8,
+                right: rect.right - 8,
+                top: rect.top,
+                bottom: rect.bottom - 8
+            };
+        }
+
+        // Kontrola, či sme pustili bublinu NAD košíkom (vstupná brána)
+        function checkBasketEntry(heart) {
+            const hCx = heart.x + heart.size / 2;
+            const hCy = heart.y + heart.size / 2;
+
+            const baskets = ['yes', 'no'];
+            for (let type of baskets) {
+                const rect = getBasketRect(type);
+                // Kontrolujeme, či je vnútri obdĺžnika košíka
+                if (hCx > rect.left && hCx < rect.right && hCy > rect.top && hCy < rect.bottom) {
+                    return type;
+                }
+            }
+            return null;
+        }
+
+        function updateFloatingPhysics(h, time, buffer) {
+            // Gravitácia pre plávanie (jemná)
+            h.vx += tiltX * h.sensitivity * 0.5; 
+            h.vy += tiltY * h.sensitivity * 0.5;
+            
+            // Sway
+            h.vx += Math.cos(time * h.swaySpeed + h.swayPhase) * 0.03;
+            h.vy += Math.sin(time * h.swaySpeed + h.swayPhase) * 0.03;
+
+            h.vx *= h.friction;
+            h.vy *= h.friction;
+
+            // Infinite Wrap len pre plávajúce
+            if (h.x > width + buffer) h.x = -buffer;
+            else if (h.x < -buffer) h.x = width + buffer;
+            if (h.y > height + buffer) h.y = -buffer;
+            else if (h.y < -buffer) h.y = height + buffer;
+        }
+
+        function updateBasketPhysics(h) {
+            const rect = getBasketRect(h.currentBasket);
+            
+            // V košíku pôsobí silnejšia "reálna" gravitácia (padajú dole)
+            // tiltY je zvyčajne kladný keď držíš mobil rovno, záporný keď ho preklopíš dopredu
+            // Pridáme konštantnú gravitáciu dole + náklon
+            
+            // Simulácia gravitácie v nádobe
+            h.vx += tiltX * 0.8; 
+            h.vy += tiltY * 0.8 + 0.2; // +0.2 je konštantná tiaž dole
+
+            // Trenie vnútri košíka (väčšie ako vo vzduchu)
+            h.vx *= 0.95;
+            h.vy *= 0.95;
+
+            // Update polohy
+            let nextX = h.x + h.vx;
+            let nextY = h.y + h.vy;
+
+            // Kolízie so stenami (U-shape)
+            // Ľavá stena
+            if (nextX < rect.left) {
+                nextX = rect.left;
+                h.vx *= -0.6; // Odraz
+            }
+            // Pravá stena
+            else if (nextX + h.size > rect.right) {
+                nextX = rect.right - h.size;
+                h.vx *= -0.6;
+            }
+
+            // Dno
+            if (nextY + h.size > rect.bottom) {
+                nextY = rect.bottom - h.size;
+                h.vy *= -0.5; // Tlmený odraz od dna
+            }
+
+            // Výstup z košíka (HORE)
+            // Ak bublina vyletí nad horný okraj košíka, prestáva byť v košíku
+            if (nextY < rect.top - h.size) {
+                h.currentBasket = null;
+                // Vystrelí ju to trochu von
+                h.vy -= 2; 
+            }
+
+            h.x = nextX;
+            h.y = nextY;
+        }
+
         function animate() {
             const buffer = 80;
             const time = Date.now();
@@ -177,7 +346,6 @@
             for (let i = 0; i < hearts.length; i++) {
                 let h = hearts[i];
 
-                // Ak je bublina ťahaná, preskočíme fyziku a len ju vykreslíme
                 if (h.isDragged) {
                     h.vx = 0;
                     h.vy = 0;
@@ -185,54 +353,46 @@
                     continue;
                 }
 
-                // --- FYZIKA PRE VOĽNÉ BUBLINY ---
-
-                // 1. Gravitácia
-                h.vx += gravityX * h.sensitivity;
-                h.vy += gravityY * h.sensitivity;
-
-                // 2. Wobble
-                h.vx += Math.cos(time * h.swaySpeed + h.swayPhase) * 0.03;
-                h.vy += Math.sin(time * h.swaySpeed + h.swayPhase) * 0.03;
-
-                // 3. Repulzia
+                if (h.currentBasket) {
+                    // Fyzika vnútri košíka
+                    updateBasketPhysics(h);
+                } else {
+                    // Fyzika plávania vonku
+                    updateFloatingPhysics(h, time, buffer);
+                    h.x += h.vx;
+                    h.y += h.vy;
+                }
+                
+                // Repulzia (len jemná, aby sa neprekrývali úplne)
                 for (let j = 0; j < hearts.length; j++) {
                     if (i === j) continue;
                     let h2 = hearts[j];
                     
+                    // Ak sú v rôznych stavoch (jeden v koši, druhý von), neinteragujú
+                    if (!!h.currentBasket !== !!h2.currentBasket) continue;
+
                     let dx = h.x - h2.x;
                     let dy = h.y - h2.y;
                     let dist = Math.sqrt(dx*dx + dy*dy);
-                    let minDist = (h.size/2 + h2.size/2) * 1.2; 
+                    let minDist = (h.size/2 + h2.size/2) * 1.1; 
 
                     if (dist < minDist && dist > 0) {
                         let force = (minDist - dist) / minDist; 
-                        let pushX = (dx / dist) * force * 0.3;
-                        let pushY = (dy / dist) * force * 0.3;
+                        let pushX = (dx / dist) * force * 0.2;
+                        let pushY = (dy / dist) * force * 0.2;
+                        
                         h.vx += pushX;
                         h.vy += pushY;
                     }
                 }
 
-                h.vx *= h.friction;
-                h.vy *= h.friction;
-
-                const maxSpeed = 5.0; 
+                // Max rýchlosť limit
+                const maxSpeed = h.currentBasket ? 15.0 : 5.0; 
                 const speed = Math.sqrt(h.vx*h.vx + h.vy*h.vy);
                 if (speed > maxSpeed) {
                     h.vx = (h.vx / speed) * maxSpeed;
                     h.vy = (h.vy / speed) * maxSpeed;
                 }
-
-                h.x += h.vx;
-                h.y += h.vy;
-
-                // Infinite Wrap
-                if (h.x > width + buffer) h.x = -buffer;
-                else if (h.x < -buffer) h.x = width + buffer;
-
-                if (h.y > height + buffer) h.y = -buffer;
-                else if (h.y < -buffer) h.y = height + buffer;
 
                 h.element.style.transform = `translate(${h.x}px, ${h.y}px)`;
             }
@@ -245,21 +405,22 @@
         });
 
         function handleOrientation(event) {
+            // Gamma (-90 to 90) - left/right
+            // Beta (-180 to 180) - front/back
             const x = event.gamma || 0; 
             const y = event.beta || 0;
-            gravityX = x / 45; 
-            gravityY = y / 45; 
+            
+            // Pre plávanie používame jemný prepočet
+            tiltX = x / 45; 
+            tiltY = y / 45; 
         }
 
-        // --- MULTITOUCH LOGIC ---
-        
+        // --- Interaction Logic ---
         function findHeartAt(x, y) {
-            // Hľadáme bublinu od vrchu (posledná v poli = najvyššie Z-index)
             for (let i = hearts.length - 1; i >= 0; i--) {
                 let h = hearts[i];
-                if (h.isDragged) continue; // Ak ju už niekto drží, nemôžeme ju chytiť znova
+                if (h.isDragged) continue; 
                 
-                // Hitbox s paddingom 20px
                 if (x >= h.x - 20 && x <= h.x + h.size + 20 &&
                     y >= h.y - 20 && y <= h.y + h.size + 20) {
                     return h;
@@ -268,13 +429,15 @@
             return null;
         }
 
-        // Touch Start
         window.addEventListener('touchstart', (e) => {
             for (let i = 0; i < e.changedTouches.length; i++) {
                 const t = e.changedTouches[i];
                 const h = findHeartAt(t.clientX, t.clientY);
                 if (h) {
                     h.isDragged = true;
+                    // Ak chytím bublinu z košíka, resetujem jej stav na 'floating'
+                    h.currentBasket = null;
+                    h.element.style.opacity = '1'; 
                     activeDrags.set(t.identifier, {
                         heart: h,
                         offX: t.clientX - h.x,
@@ -284,7 +447,6 @@
             }
         }, {passive: false});
 
-        // Touch Move
         window.addEventListener('touchmove', (e) => {
             e.preventDefault(); 
             for (let i = 0; i < e.changedTouches.length; i++) {
@@ -293,19 +455,27 @@
                 if (dragData) {
                     dragData.heart.x = t.clientX - dragData.offX;
                     dragData.heart.y = t.clientY - dragData.offY;
-                    dragData.heart.vx = 0;
-                    dragData.heart.vy = 0;
                 }
             }
         }, {passive: false});
 
-        // Touch End / Cancel
         function endTouch(e) {
             for (let i = 0; i < e.changedTouches.length; i++) {
                 const t = e.changedTouches[i];
                 const dragData = activeDrags.get(t.identifier);
                 if (dragData) {
                     dragData.heart.isDragged = false;
+                    
+                    // Skontrolujeme, či sme bublinu pustili do košíka
+                    const basketType = checkBasketEntry(dragData.heart);
+                    if (basketType) {
+                        dragData.heart.currentBasket = basketType;
+                    } else {
+                        // Vrátime opacity pre floating
+                        const normalizedSize = (dragData.heart.size - 30) / 40;
+                        dragData.heart.element.style.opacity = 0.6 + (normalizedSize * 0.4);
+                    }
+                    
                     activeDrags.delete(t.identifier);
                 }
             }
@@ -313,12 +483,13 @@
         window.addEventListener('touchend', endTouch);
         window.addEventListener('touchcancel', endTouch);
 
-        // --- MOUSE FALLBACK (pre PC) ---
-        // Použijeme fiktívne ID 'mouse' pre kompatibilitu s Mapou
+        // --- Mouse Fallback ---
         window.addEventListener('mousedown', (e) => {
             const h = findHeartAt(e.clientX, e.clientY);
             if (h) {
                 h.isDragged = true;
+                h.currentBasket = null;
+                h.element.style.opacity = '1';
                 activeDrags.set('mouse', {
                     heart: h,
                     offX: e.clientX - h.x,
@@ -328,21 +499,16 @@
         });
 
         window.addEventListener('mousemove', (e) => {
-            // Gravitácia myšou (ak nič neťaháme)
             if (activeDrags.size === 0 && (!window.DeviceOrientationEvent || !('ontouchstart' in window))) {
                 const centerX = width / 2;
                 const centerY = height / 2;
-                gravityX = (e.clientX - centerX) / centerX;
-                gravityY = (e.clientY - centerY) / centerY;
+                tiltX = (e.clientX - centerX) / centerX;
+                tiltY = (e.clientY - centerY) / centerY;
             }
-
-            // Drag logika
             const dragData = activeDrags.get('mouse');
             if (dragData) {
                 dragData.heart.x = e.clientX - dragData.offX;
                 dragData.heart.y = e.clientY - dragData.offY;
-                dragData.heart.vx = 0;
-                dragData.heart.vy = 0;
             }
         });
 
@@ -350,21 +516,23 @@
             const dragData = activeDrags.get('mouse');
             if (dragData) {
                 dragData.heart.isDragged = false;
+                const basketType = checkBasketEntry(dragData.heart);
+                if (basketType) {
+                    dragData.heart.currentBasket = basketType;
+                } else {
+                    const normalizedSize = (dragData.heart.size - 30) / 40;
+                    dragData.heart.element.style.opacity = 0.6 + (normalizedSize * 0.4);
+                }
                 activeDrags.delete('mouse');
             }
         });
 
-
         function startGame() {
             startBtn.style.display = 'none';
-            centerImage.style.display = 'flex';
+            gameLayer.style.display = 'block';
             container.style.display = 'block';
             instructionTxt.style.display = 'block';
-            
-            setTimeout(() => {
-                instructionTxt.style.opacity = 1;
-            }, 100);
-
+            setTimeout(() => instructionTxt.style.opacity = 1, 100);
             initHearts();
             animate();
         }
@@ -387,7 +555,6 @@
                 startGame();
             }
         });
-
     </script>
 </body>
 </html>
