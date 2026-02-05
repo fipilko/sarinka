@@ -11,10 +11,9 @@
             overflow: hidden;
             background-color: #E6E6FA; /* Svetlo fialová */
             font-family: sans-serif;
-            touch-action: none; /* Zabráni scrollovaniu na mobile */
+            touch-action: none; 
         }
 
-        /* Centrálny placeholder obrázok */
         #center-image {
             position: absolute;
             top: 50%;
@@ -25,7 +24,7 @@
             background-color: #007bff; /* Modrá */
             border-radius: 15px;
             box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-            z-index: 1; /* Pod srdiečkami */
+            z-index: 1; 
             display: flex;
             align-items: center;
             justify-content: center;
@@ -33,15 +32,14 @@
             font-weight: bold;
         }
 
-        /* Kontajner pre srdiečka */
         #hearts-container {
             position: absolute;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            z-index: 2; /* Nad obrázkom */
-            pointer-events: none; /* Aby sa dalo kliknúť "cez" ne, ak by tam bolo niečo interaktívne */
+            z-index: 2; 
+            pointer-events: none; 
         }
 
         .heart {
@@ -49,7 +47,6 @@
             will-change: transform;
         }
 
-        /* Tlačidlo na povolenie senzorov (iOS requirement) */
         #start-btn {
             position: absolute;
             bottom: 20px;
@@ -81,25 +78,21 @@
         const container = document.getElementById('hearts-container');
         const startBtn = document.getElementById('start-btn');
         
-        // Fyzikálne premenné
         let gravityX = 0;
-        let gravityY = 0; // Na začiatku nulová gravitácia
+        let gravityY = 0;
         const hearts = [];
-        const numHearts = 40;
+        const numHearts = 35; // Trochu menej, aby mali viac miesta
         
-        // Rozmery obrazovky
         let width = window.innerWidth;
         let height = window.innerHeight;
 
-        // Vytvorenie srdiečka (SVG pre bublinový efekt)
         function createHeart() {
-            const size = Math.random() * 40 + 30; // 30px až 70px
+            const size = Math.random() * 40 + 30; 
             const element = document.createElement('div');
             element.classList.add('heart');
             element.style.width = `${size}px`;
             element.style.height = `${size}px`;
             
-            // SVG Srdce - priehľadné s bielym okrajom (bublinový efekt)
             element.innerHTML = `
                 <svg viewBox="0 0 32 29.6" style="width: 100%; height: 100%; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1));">
                     <path d="M23.6,0c-3.4,0-6.3,2.7-7.6,5.6C14.7,2.7,11.8,0,8.4,0C3.8,0,0,3.8,0,8.4c0,9.4,9.5,11.9,16,21.2
@@ -107,88 +100,116 @@
                     fill="rgba(255, 255, 255, 0.25)" 
                     stroke="white" 
                     stroke-width="1.5"/>
-                    <!-- Odlesk pre efekt bubliny -->
                     <path d="M6,6 Q10,2 14,6" fill="none" stroke="rgba(255,255,255,0.6)" stroke-width="2" stroke-linecap="round" />
                 </svg>
             `;
 
             container.appendChild(element);
 
-            // Návrat objektu s fyzikálnymi vlastnosťami
             return {
                 element: element,
                 x: Math.random() * (width - size),
                 y: Math.random() * (height - size),
-                vx: (Math.random() - 0.5) * 2,
-                vy: (Math.random() - 0.5) * 2,
+                // Veľmi pomalý počiatočný pohyb
+                vx: (Math.random() - 0.5) * 0.5,
+                vy: (Math.random() - 0.5) * 0.5,
                 size: size,
-                friction: 0.98 // Trenie, aby nelietali nekonečne rýchlo
+                friction: 0.96 // Vyššie trenie = rýchlejšie spomaľovanie
             };
         }
 
-        // Inicializácia
         for (let i = 0; i < numHearts; i++) {
             hearts.push(createHeart());
         }
 
-        // Update loop
         function animate() {
-            for (let h of hearts) {
-                // Aplikovanie sily z gyroskopu
-                h.vx += gravityX * 0.5;
-                h.vy += gravityY * 0.5;
+            // 1. Aplikovanie síl (Gravitácia + Repulzia)
+            for (let i = 0; i < hearts.length; i++) {
+                let h = hearts[i];
 
+                // Jemná gravitácia (oveľa menší násobič 0.05)
+                h.vx += gravityX * 0.05;
+                h.vy += gravityY * 0.05;
+
+                // Repulzia - kontrola voči ostatným bublinám
+                for (let j = 0; j < hearts.length; j++) {
+                    if (i === j) continue;
+                    let h2 = hearts[j];
+                    
+                    let dx = h.x - h2.x;
+                    let dy = h.y - h2.y;
+                    let dist = Math.sqrt(dx*dx + dy*dy);
+                    
+                    // Minimálna vzdialenosť (súčet polomerov + malá rezerva)
+                    // Bubliny sú štvorce, takže size je priemer. size/2 je polomer.
+                    let minDist = (h.size/2 + h2.size/2) * 1.2; 
+
+                    if (dist < minDist && dist > 0) {
+                        // Vypočítame silu odpudenia
+                        let force = (minDist - dist) / minDist; // 0 (ďaleko) až 1 (prekryté)
+                        
+                        // Jemné odtlačenie
+                        let pushX = (dx / dist) * force * 0.15;
+                        let pushY = (dy / dist) * force * 0.15;
+
+                        h.vx += pushX;
+                        h.vy += pushY;
+                    }
+                }
+            }
+
+            // 2. Pohyb a limity
+            for (let h of hearts) {
                 // Trenie
                 h.vx *= h.friction;
                 h.vy *= h.friction;
 
-                // Update pozície
+                // Limit maximálnej rýchlosti (aby lietali pomaly)
+                const maxSpeed = 1.5; 
+                const speed = Math.sqrt(h.vx*h.vx + h.vy*h.vy);
+                if (speed > maxSpeed) {
+                    h.vx = (h.vx / speed) * maxSpeed;
+                    h.vy = (h.vy / speed) * maxSpeed;
+                }
+
                 h.x += h.vx;
                 h.y += h.vy;
 
-                // Kolízie so stenami (odrážanie)
-                if (h.x <= 0) { h.x = 0; h.vx *= -0.8; }
-                if (h.x >= width - h.size) { h.x = width - h.size; h.vx *= -0.8; }
-                if (h.y <= 0) { h.y = 0; h.vy *= -0.8; }
-                if (h.y >= height - h.size) { h.y = height - h.size; h.vy *= -0.8; }
+                // Odrážanie od stien (zachovanie energie trochu tlmíme)
+                if (h.x <= 0) { h.x = 0; h.vx *= -0.5; }
+                if (h.x >= width - h.size) { h.x = width - h.size; h.vx *= -0.5; }
+                if (h.y <= 0) { h.y = 0; h.vy *= -0.5; }
+                if (h.y >= height - h.size) { h.y = height - h.size; h.vy *= -0.5; }
 
-                // Vykreslenie
                 h.element.style.transform = `translate(${h.x}px, ${h.y}px)`;
             }
             requestAnimationFrame(animate);
         }
 
-        // Handle Resize
         window.addEventListener('resize', () => {
             width = window.innerWidth;
             height = window.innerHeight;
         });
 
-        // Gyroskop logika
         function handleOrientation(event) {
-            // Gamma: náklon vľavo/vpravo (-90 až 90)
-            // Beta: náklon dopredu/dozadu (-180 až 180)
-            
-            // Obmedzíme hodnoty, aby nelietali príliš šialene
             const x = event.gamma || 0; 
             const y = event.beta || 0;
 
-            // Mapovanie na gravitáciu (rozsah cca -1 až 1)
-            gravityX = x / 45; 
-            gravityY = y / 45; 
+            // Zvýšil som deliteľ (80), aby bola zmena gravitácie lenivejšia
+            gravityX = x / 80; 
+            gravityY = y / 80; 
         }
 
-        // Mouse fallback pre PC (aby to nebolo nudné)
         window.addEventListener('mousemove', (e) => {
             if (!window.DeviceOrientationEvent || !('ontouchstart' in window)) {
                 const centerX = width / 2;
                 const centerY = height / 2;
-                gravityX = (e.clientX - centerX) / centerX;
-                gravityY = (e.clientY - centerY) / centerY;
+                // Aj myšou to ovládame jemnejšie
+                gravityX = (e.clientX - centerX) / centerX * 0.5;
+                gravityY = (e.clientY - centerY) / centerY * 0.5;
             }
         });
 
-        // Request Permission (iOS 13+ vyžaduje explicitné povolenie na HTTPS)
         startBtn.addEventListener('click', () => {
             if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
                 DeviceOrientationEvent.requestPermission()
@@ -202,13 +223,11 @@
                     })
                     .catch(console.error);
             } else {
-                // Non-iOS alebo staršie zariadenia
                 window.addEventListener('deviceorientation', handleOrientation);
                 startBtn.style.display = 'none';
             }
         });
 
-        // Spustiť animáciu
         animate();
 
     </script>
