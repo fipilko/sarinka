@@ -73,16 +73,16 @@
             bottom: 5%; 
             width: 28vw;
             height: 35vh; 
-            /* U-shape borders */
             border-left: 8px solid rgba(255, 255, 255, 0.8);
             border-right: 8px solid rgba(255, 255, 255, 0.8);
             border-bottom: 8px solid rgba(255, 255, 255, 0.8);
             border-top: none;
-            border-radius: 0 0 25px 25px; /* Zaoblené dno */
+            border-radius: 0 0 25px 25px;
             
             display: flex;
-            align-items: flex-end; 
-            justify-content: center;
+            flex-direction: column;
+            align-items: center; 
+            justify-content: flex-end;
             padding-bottom: 10px;
             
             font-weight: bold;
@@ -92,9 +92,20 @@
             z-index: 1;
         }
 
+        .counter {
+            background: rgba(255, 255, 255, 0.9);
+            color: #333;
+            padding: 2px 10px;
+            border-radius: 10px;
+            font-size: 18px;
+            margin-top: 5px;
+            font-family: monospace;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+
         #basket-yes {
             left: 5%;
-            background-color: rgba(76, 175, 80, 0.3); /* Priehľadné vnútro */
+            background-color: rgba(76, 175, 80, 0.3); 
             box-shadow: 0 0 15px rgba(76, 175, 80, 0.4);
             text-shadow: 0 1px 2px black;
         }
@@ -120,6 +131,20 @@
         .heart {
             position: absolute;
             will-change: transform;
+        }
+
+        .heart svg path {
+            transition: fill 0.3s ease, stroke 0.3s ease;
+        }
+
+        .heart.green svg path:first-child {
+            fill: rgba(76, 175, 80, 0.8) !important;
+            stroke: #2E7D32 !important;
+        }
+
+        .heart.red svg path:first-child {
+            fill: rgba(244, 67, 54, 0.8) !important;
+            stroke: #C62828 !important;
         }
 
         #start-btn {
@@ -166,9 +191,17 @@
     <div id="game-layer">
         <h1 id="valentine-text">Budeš moja valentínka Sarinka?</h1>
         
-        <div id="basket-yes" class="basket">ÁNO</div>
+        <div id="basket-yes" class="basket">
+            <span>ÁNO</span>
+            <div id="count-yes" class="counter">0</div>
+        </div>
+        
         <div id="center-image">OBRÁZOK</div>
-        <div id="basket-no" class="basket">NIE</div>
+        
+        <div id="basket-no" class="basket">
+            <span>NIE</span>
+            <div id="count-no" class="counter">0</div>
+        </div>
     </div>
 
     <div id="hearts-container"></div>
@@ -182,10 +215,20 @@
         const instructionTxt = document.getElementById('instruction');
         const basketYesEl = document.getElementById('basket-yes');
         const basketNoEl = document.getElementById('basket-no');
+        const countYesEl = document.getElementById('count-yes');
+        const countNoEl = document.getElementById('count-no');
         
-        // Fyzikálne premenné
-        let tiltX = 0; // Raw tilt
+        let tiltX = 0; 
         let tiltY = 0; 
+
+        // Kalibračné premenné
+        let calibrationOffsetBeta = 0;
+        let isCalibrated = false;
+        
+        // Premenné pre detekciu "položenia na stôl"
+        let flatStableStartTime = 0;
+        let lastBeta = 0;
+        let lastGamma = 0;
         
         const hearts = [];
         const numHearts = 40; 
@@ -233,7 +276,7 @@
                 swayPhase: Math.random() * Math.PI * 2,
                 swaySpeed: 0.001 + Math.random() * 0.002,
                 isDragged: false,
-                currentBasket: null // 'yes' alebo 'no' ak je vnútri
+                currentBasket: null 
             };
         }
 
@@ -246,7 +289,6 @@
         function getBasketRect(type) {
             const el = type === 'yes' ? basketYesEl : basketNoEl;
             const rect = el.getBoundingClientRect();
-            // Pridáme offset pre hrúbku stien
             return {
                 left: rect.left + 8,
                 right: rect.right - 8,
@@ -255,7 +297,6 @@
             };
         }
 
-        // Kontrola, či sme pustili bublinu NAD košíkom (vstupná brána)
         function checkBasketEntry(heart) {
             const hCx = heart.x + heart.size / 2;
             const hCy = heart.y + heart.size / 2;
@@ -263,7 +304,6 @@
             const baskets = ['yes', 'no'];
             for (let type of baskets) {
                 const rect = getBasketRect(type);
-                // Kontrolujeme, či je vnútri obdĺžnika košíka
                 if (hCx > rect.left && hCx < rect.right && hCy > rect.top && hCy < rect.bottom) {
                     return type;
                 }
@@ -272,18 +312,15 @@
         }
 
         function updateFloatingPhysics(h, time, buffer) {
-            // Gravitácia pre plávanie (jemná)
             h.vx += tiltX * h.sensitivity * 0.5; 
             h.vy += tiltY * h.sensitivity * 0.5;
             
-            // Sway
             h.vx += Math.cos(time * h.swaySpeed + h.swayPhase) * 0.03;
             h.vy += Math.sin(time * h.swaySpeed + h.swayPhase) * 0.03;
 
             h.vx *= h.friction;
             h.vy *= h.friction;
 
-            // Infinite Wrap len pre plávajúce
             if (h.x > width + buffer) h.x = -buffer;
             else if (h.x < -buffer) h.x = width + buffer;
             if (h.y > height + buffer) h.y = -buffer;
@@ -293,45 +330,31 @@
         function updateBasketPhysics(h) {
             const rect = getBasketRect(h.currentBasket);
             
-            // V košíku pôsobí silnejšia "reálna" gravitácia (padajú dole)
-            // tiltY je zvyčajne kladný keď držíš mobil rovno, záporný keď ho preklopíš dopredu
-            // Pridáme konštantnú gravitáciu dole + náklon
-            
-            // Simulácia gravitácie v nádobe
             h.vx += tiltX * 0.8; 
-            h.vy += tiltY * 0.8 + 0.2; // +0.2 je konštantná tiaž dole
+            h.vy += tiltY * 0.8 + 0.2; 
 
-            // Trenie vnútri košíka (väčšie ako vo vzduchu)
             h.vx *= 0.95;
             h.vy *= 0.95;
 
-            // Update polohy
             let nextX = h.x + h.vx;
             let nextY = h.y + h.vy;
 
-            // Kolízie so stenami (U-shape)
-            // Ľavá stena
             if (nextX < rect.left) {
                 nextX = rect.left;
-                h.vx *= -0.6; // Odraz
+                h.vx *= -0.6; 
             }
-            // Pravá stena
             else if (nextX + h.size > rect.right) {
                 nextX = rect.right - h.size;
                 h.vx *= -0.6;
             }
 
-            // Dno
             if (nextY + h.size > rect.bottom) {
                 nextY = rect.bottom - h.size;
-                h.vy *= -0.5; // Tlmený odraz od dna
+                h.vy *= -0.5; 
             }
 
-            // Výstup z košíka (HORE)
-            // Ak bublina vyletí nad horný okraj košíka, prestáva byť v košíku
             if (nextY < rect.top - h.size) {
                 h.currentBasket = null;
-                // Vystrelí ju to trochu von
                 h.vy -= 2; 
             }
 
@@ -342,6 +365,9 @@
         function animate() {
             const buffer = 80;
             const time = Date.now();
+            
+            let cYes = 0;
+            let cNo = 0;
 
             for (let i = 0; i < hearts.length; i++) {
                 let h = hearts[i];
@@ -349,26 +375,33 @@
                 if (h.isDragged) {
                     h.vx = 0;
                     h.vy = 0;
+                    h.element.classList.remove('green', 'red');
                     h.element.style.transform = `translate(${h.x}px, ${h.y}px)`;
                     continue;
                 }
 
                 if (h.currentBasket) {
-                    // Fyzika vnútri košíka
                     updateBasketPhysics(h);
+                    
+                    if (h.currentBasket === 'yes') {
+                        h.element.classList.add('green');
+                        h.element.classList.remove('red');
+                        cYes++;
+                    } else if (h.currentBasket === 'no') {
+                        h.element.classList.add('red');
+                        h.element.classList.remove('green');
+                        cNo++;
+                    }
                 } else {
-                    // Fyzika plávania vonku
+                    h.element.classList.remove('green', 'red');
                     updateFloatingPhysics(h, time, buffer);
                     h.x += h.vx;
                     h.y += h.vy;
                 }
                 
-                // Repulzia (len jemná, aby sa neprekrývali úplne)
                 for (let j = 0; j < hearts.length; j++) {
                     if (i === j) continue;
                     let h2 = hearts[j];
-                    
-                    // Ak sú v rôznych stavoch (jeden v koši, druhý von), neinteragujú
                     if (!!h.currentBasket !== !!h2.currentBasket) continue;
 
                     let dx = h.x - h2.x;
@@ -380,13 +413,11 @@
                         let force = (minDist - dist) / minDist; 
                         let pushX = (dx / dist) * force * 0.2;
                         let pushY = (dy / dist) * force * 0.2;
-                        
                         h.vx += pushX;
                         h.vy += pushY;
                     }
                 }
 
-                // Max rýchlosť limit
                 const maxSpeed = h.currentBasket ? 15.0 : 5.0; 
                 const speed = Math.sqrt(h.vx*h.vx + h.vy*h.vy);
                 if (speed > maxSpeed) {
@@ -396,6 +427,10 @@
 
                 h.element.style.transform = `translate(${h.x}px, ${h.y}px)`;
             }
+
+            countYesEl.innerText = cYes;
+            countNoEl.innerText = cNo;
+
             requestAnimationFrame(animate);
         }
 
@@ -405,22 +440,50 @@
         });
 
         function handleOrientation(event) {
-            // Gamma (-90 to 90) - left/right
-            // Beta (-180 to 180) - front/back
-            const x = event.gamma || 0; 
-            const y = event.beta || 0;
+            const rawX = event.gamma || 0; 
+            const rawY = event.beta || 0;
             
-            // Pre plávanie používame jemný prepočet
-            tiltX = x / 45; 
-            tiltY = y / 45; 
+            // 1. Prvotná kalibrácia
+            if (!isCalibrated) {
+                // Ak je uhol v 35 +/- 6
+                if (Math.abs(rawY - 35) <= 6) {
+                    calibrationOffsetBeta = rawY;
+                } else {
+                    // Inak default 35
+                    calibrationOffsetBeta = 35;
+                }
+                isCalibrated = true;
+            }
+
+            // 2. Detekcia "na stole" (0 +/- 3 stupne) a malý pohyb
+            const speed = Math.abs(rawY - lastBeta) + Math.abs(rawX - lastGamma);
+            
+            // Ak je v rovine 0 +/- 3 a hýbe sa veľmi málo
+            if (Math.abs(rawY) <= 3 && Math.abs(rawX) <= 3 && speed < 0.5) {
+                if (flatStableStartTime === 0) {
+                    flatStableStartTime = Date.now();
+                } else if (Date.now() - flatStableStartTime > 1000) {
+                    // Viac ako 1s stabilne na stole -> reset na 0
+                    calibrationOffsetBeta = 0;
+                }
+            } else {
+                flatStableStartTime = 0;
+            }
+
+            lastBeta = rawY;
+            lastGamma = rawX;
+
+            // Výpočet finálneho náklonu s offsetom
+            const effectiveY = rawY - calibrationOffsetBeta;
+
+            tiltX = rawX / 45; 
+            tiltY = effectiveY / 45; 
         }
 
-        // --- Interaction Logic ---
         function findHeartAt(x, y) {
             for (let i = hearts.length - 1; i >= 0; i--) {
                 let h = hearts[i];
                 if (h.isDragged) continue; 
-                
                 if (x >= h.x - 20 && x <= h.x + h.size + 20 &&
                     y >= h.y - 20 && y <= h.y + h.size + 20) {
                     return h;
@@ -435,9 +498,10 @@
                 const h = findHeartAt(t.clientX, t.clientY);
                 if (h) {
                     h.isDragged = true;
-                    // Ak chytím bublinu z košíka, resetujem jej stav na 'floating'
                     h.currentBasket = null;
                     h.element.style.opacity = '1'; 
+                    h.element.classList.remove('green', 'red');
+                    
                     activeDrags.set(t.identifier, {
                         heart: h,
                         offX: t.clientX - h.x,
@@ -466,16 +530,13 @@
                 if (dragData) {
                     dragData.heart.isDragged = false;
                     
-                    // Skontrolujeme, či sme bublinu pustili do košíka
                     const basketType = checkBasketEntry(dragData.heart);
                     if (basketType) {
                         dragData.heart.currentBasket = basketType;
                     } else {
-                        // Vrátime opacity pre floating
                         const normalizedSize = (dragData.heart.size - 30) / 40;
                         dragData.heart.element.style.opacity = 0.6 + (normalizedSize * 0.4);
                     }
-                    
                     activeDrags.delete(t.identifier);
                 }
             }
@@ -483,13 +544,13 @@
         window.addEventListener('touchend', endTouch);
         window.addEventListener('touchcancel', endTouch);
 
-        // --- Mouse Fallback ---
         window.addEventListener('mousedown', (e) => {
             const h = findHeartAt(e.clientX, e.clientY);
             if (h) {
                 h.isDragged = true;
                 h.currentBasket = null;
                 h.element.style.opacity = '1';
+                h.element.classList.remove('green', 'red');
                 activeDrags.set('mouse', {
                     heart: h,
                     offX: e.clientX - h.x,
