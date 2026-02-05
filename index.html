@@ -47,6 +47,7 @@
             box-sizing: border-box;
         }
         
+        /* Obyčajný Hupsik text (1. pokus) */
         #oops-text {
             position: absolute;
             top: 50%;
@@ -69,6 +70,7 @@
             border: 2px solid #ffcdd2;
         }
 
+        /* Varovný box pre pokusy 2-4 */
         #warning-message {
             position: absolute;
             top: 50%;
@@ -82,20 +84,24 @@
             pointer-events: none;
         }
 
-        #warning-image {
-            width: 200px; 
-            height: 150px;
-            background-color: #ff9800; 
+        #warning-image-container {
+            width: 250px; 
+            height: 200px;
+            background-color: #fff; 
             border-radius: 15px;
             box-shadow: 0 10px 30px rgba(0,0,0,0.3);
             display: flex; 
             align-items: center;
             justify-content: center;
-            color: white;
-            font-weight: bold;
-            font-size: 18px;
-            border: 3px solid white;
-            margin-bottom: 15px;
+            border: 4px solid white;
+            margin-bottom: 10px;
+            overflow: hidden;
+        }
+
+        #warning-image-container img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover; /* Tu môžeme dať cover, nech to vyzerá ako fotka */
         }
 
         #warning-caption {
@@ -104,11 +110,12 @@
             font-weight: bold;
             color: #d32f2f;
             background: rgba(255, 255, 255, 0.9);
-            padding: 10px 20px;
+            padding: 5px 20px;
             border-radius: 15px;
             box-shadow: 0 5px 15px rgba(0,0,0,0.1);
         }
 
+        /* SUCCESS MESSAGE (Výhra) */
         #success-message {
             position: absolute;
             top: 40%;
@@ -126,21 +133,25 @@
             to { transform: translate(-50%, -50%) scale(1); opacity: 1; }
         }
 
-        #success-image {
+        #success-image-container {
             width: 35vw; 
-            max-width: 200px;
+            max-width: 250px;
             height: 35vh;
-            max-height: 250px;
+            max-height: 300px;
             background-color: #ff69b4; 
             border-radius: 15px;
             box-shadow: 0 10px 40px rgba(255, 105, 180, 0.5);
             display: flex; 
             align-items: center;
             justify-content: center;
-            color: white;
-            font-weight: bold;
-            font-size: 20px;
             border: 4px solid white;
+            overflow: hidden;
+        }
+
+        #success-image-container img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
         }
 
         #success-caption {
@@ -154,24 +165,36 @@
             border-radius: 20px;
         }
 
+        /* Centrálny obrázok s Slideshow */
         #center-image {
             position: absolute;
             top: 40%;
             left: 50%;
             transform: translate(-50%, -50%);
             width: 35vw; 
-            max-width: 200px;
+            max-width: 250px;
             height: 35vh;
-            max-height: 250px;
-            background-color: #007bff;
+            max-height: 300px;
+            background-color: #000; /* Čierne pozadie pre fotky */
             border-radius: 15px;
             box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-            display: flex; 
-            align-items: center;
-            justify-content: center;
-            color: white;
-            font-weight: bold;
             z-index: 2;
+            overflow: hidden; /* Aby fotky nepretrčali */
+        }
+
+        #center-image img {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: contain; /* Celý obrázok v ráme */
+            opacity: 0;
+            transition: opacity 1s ease-in-out;
+        }
+
+        #center-image img.active {
+            opacity: 1;
         }
 
         .basket {
@@ -201,17 +224,18 @@
             border-bottom-color: transparent !important;
         }
 
-        /* Nový štýl pre "Hups" správu keď košík zmizne */
+        /* Hups - košík zmizol */
         #basket-gone-message {
             position: absolute;
             bottom: 5%;
-            right: 5%; /* Na mieste červeného košíka */
+            right: 5%; 
             width: 28vw;
-            display: none; /* Default hidden */
+            display: none; 
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            pointer-events: none;
+            pointer-events: auto; 
+            cursor: pointer; 
             z-index: 1;
             animation: fadeIn 0.5s;
         }
@@ -221,21 +245,24 @@
             to { opacity: 1; }
         }
 
-        #basket-gone-image {
-            width: 80px;
-            height: 80px;
-            background-color: #9e9e9e; /* Sivá */
+        #basket-gone-image-container {
+            width: 120px;
+            height: 120px;
+            background-color: #9e9e9e; 
             border-radius: 15px;
             box-shadow: 0 5px 15px rgba(0,0,0,0.2);
             display: flex;
             align-items: center;
             justify-content: center;
-            color: white;
-            font-weight: bold;
             border: 2px solid white;
             margin-bottom: 10px;
-            font-size: 14px;
-            text-align: center;
+            overflow: hidden;
+        }
+
+        #basket-gone-image-container img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
         }
 
         #basket-gone-caption {
@@ -352,10 +379,17 @@
             <div id="count-yes" class="counter">0</div>
         </div>
         
-        <div id="center-image">OBRÁZOK</div>
+        <!-- Centrálny obrázok (Slideshow) -->
+        <div id="center-image">
+            <img id="slide-1" class="active" src="Fotky/center/1.jpg" alt="Foto">
+            <img id="slide-2" src="Fotky/center/2.jpg" alt="Foto">
+        </div>
         
+        <!-- Výhra (Jupí) -->
         <div id="success-message">
-            <div id="success-image">OBRÁZOK 2</div>
+            <div id="success-image-container">
+                <img src="Fotky/ostatne/jupi.jpg" alt="Jupí">
+            </div>
             <div id="success-caption">Jejoo! ❤️</div>
         </div>
         
@@ -364,16 +398,21 @@
             <div id="count-no" class="counter">0</div>
         </div>
 
-        <!-- Náhrada za zmiznutý košík -->
+        <!-- Basket Gone (Hups) -->
         <div id="basket-gone-message">
-            <div id="basket-gone-image">OBRÁZOK 6</div>
+            <div id="basket-gone-image-container">
+                <img src="Fotky/filip-nahnevany/hups.jpg" alt="Hups">
+            </div>
             <div id="basket-gone-caption">Hups 🤷‍♂️</div>
         </div>
 
         <div id="oops-text">Hupsik, asi som zabudol ten košík opraviť 🤭</div>
 
+        <!-- Varovanie (Filip nahnevaný) -->
         <div id="warning-message">
-            <div id="warning-image">OBRÁZOK</div>
+            <div id="warning-image-container">
+                <img id="warning-img" src="" alt="Varovanie">
+            </div>
             <div id="warning-caption">Text</div>
         </div>
     </div>
@@ -394,11 +433,15 @@
         
         const oopsTextEl = document.getElementById('oops-text');
         const warningMsgEl = document.getElementById('warning-message');
-        const warningImgEl = document.getElementById('warning-image');
+        const warningImgEl = document.getElementById('warning-img');
         const warningCapEl = document.getElementById('warning-caption');
         
         const successMessageEl = document.getElementById('success-message');
         const basketGoneEl = document.getElementById('basket-gone-message');
+        
+        // Slideshow prvky
+        const slide1 = document.getElementById('slide-1');
+        const slide2 = document.getElementById('slide-2');
         
         let tiltX = 0; 
         let tiltY = 0; 
@@ -425,6 +468,35 @@
 
         const activeDrags = new Map();
 
+        // --- SLIDESHOW LOGIC ---
+        let currentSlideIndex = 1;
+        const totalSlides = 16;
+        let activeImgElement = slide1;
+        let nextImgElement = slide2;
+
+        function startSlideshow() {
+            setInterval(() => {
+                // Pripravíme ďalší index
+                currentSlideIndex++;
+                if (currentSlideIndex > totalSlides) currentSlideIndex = 1;
+                
+                // Nastavíme zdroj pre "zadný" (neviditeľný) obrázok
+                nextImgElement.src = `Fotky/center/${currentSlideIndex}.jpg`;
+                
+                // Počkáme chvíľu, kým sa načíta (pre istotu, aj keď fade to zakryje)
+                // Swap triedy 'active' pre fade efekt
+                nextImgElement.classList.add('active');
+                activeImgElement.classList.remove('active');
+                
+                // Swap premenných pre ďalšie kolo
+                const temp = activeImgElement;
+                activeImgElement = nextImgElement;
+                nextImgElement = temp;
+                
+            }, 5000); // 5 sekúnd
+        }
+
+        // --- HEART CREATION ---
         function createHeart() {
             const size = Math.random() * 40 + 30; 
             const normalizedSize = (size - 30) / 40; 
@@ -500,10 +572,9 @@
             return null;
         }
 
-        function showWarning(text, imgText, color) {
+        function showWarning(text, imgSrc) {
             warningCapEl.innerText = text;
-            warningImgEl.innerText = imgText;
-            warningImgEl.style.backgroundColor = color;
+            warningImgEl.src = imgSrc;
             warningMsgEl.style.display = 'flex';
         }
 
@@ -519,7 +590,7 @@
             if (noBasketCount >= 5) {
                 isBasketRemoved = true;
                 basketNoEl.style.display = 'none';
-                basketGoneEl.style.display = 'flex'; // Zobrazí sa "Hups" box
+                basketGoneEl.style.display = 'flex'; 
                 return;
             }
 
@@ -530,11 +601,11 @@
                 oopsTextEl.innerText = "Hupsik, asi som zabudol ten košík opraviť 🤭";
                 oopsTextEl.style.display = 'block';
             } else if (noBasketCount === 2) {
-                showWarning("Ty čo skúšaš?!", "OBRÁZOK 3", "#ff9800"); 
+                showWarning("Ty čo skúšaš?!", "Fotky/filip-nahnevany/ty_co_skusas.jpg"); 
             } else if (noBasketCount === 3) {
-                showWarning("Prestaň!", "OBRÁZOK 4", "#e65100"); 
+                showWarning("Prestaň!", "Fotky/filip-nahnevany/prestan.jpg"); 
             } else if (noBasketCount === 4) {
-                showWarning("Varujem ťa!", "OBRÁZOK 5", "#b71c1c"); 
+                showWarning("Varujem ťa!", "Fotky/filip-nahnevany/varujem_ta.jpg"); 
             }
 
             if (basketBreakTimeout) clearTimeout(basketBreakTimeout);
@@ -856,6 +927,7 @@
             setTimeout(() => instructionTxt.style.opacity = 1, 100);
             initHearts();
             animate();
+            startSlideshow(); // Start slideshow
         }
 
         startBtn.addEventListener('click', () => {
@@ -875,6 +947,10 @@
                 window.addEventListener('deviceorientation', handleOrientation);
                 startGame();
             }
+        });
+
+        basketGoneEl.addEventListener('click', () => {
+            basketGoneEl.style.display = 'none';
         });
     </script>
 </body>
